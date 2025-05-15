@@ -1,6 +1,7 @@
-name = "smart-doorbell-notification-worker"
+name = "smart-doorbell-notification"
 main = "worker.js"
-compatibility_date = "2024-03-25"
+compatibility_date = "2024-09-23"
+compatibility_flags = [ "nodejs_compat" ]
 
 # Specify the Cloudflare Workers runtime
 workers_dev = true
@@ -8,15 +9,3 @@ workers_dev = true
 # Observability Settings
 [observability]
 enabled = true
-
-# Cron Trigger (runs every minute)
-[triggers]
-crons = ["* * * * *"]
-
-# Environment Variables
-[vars]
-DATABASE_URL = "" # Set this in the Cloudflare dashboard or with wrangler secret
-RESEND_API_KEY = "" # Set this in the Cloudflare dashboard or with wrangler secret
-CLERK_SECRET_KEY = "" # Set this in the Cloudflare dashboard or with wrangler secret
-EMAIL_FROM_NAME = "Smart Doorbell" # The display name for the from email
-EMAIL_FROM_ADDRESS = "onboarding@resend.dev" # Resend's development email address
