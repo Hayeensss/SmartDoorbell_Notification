@@ -1,87 +1,33 @@
 # Smart Doorbell Notification Worker
 
-A Cloudflare Worker that sends email notifications for smart doorbell events. It polls your Supabase Postgres DB for new events, looks up device ownership via Clerk, and sends emails through Resend.
+The email-notification component of my [Smart Doorbell System](https://github.com/Hayeensss/Smart_Doorbell). It processes pending device events and sends email alerts to the device owner's address.
 
-## Tech Stack
+## Notification flow
 
-- **Platform**: Cloudflare Workers (Edge compute)
-- **Database**: Supabase Postgres (via `@supabase/supabase-js`)
-- **Authentication**: Clerk (user info API)
-- **Email Delivery**: Resend (transactional emails)
-- **Deployment**: Wrangler CLI
-- **Language**: Modern JavaScript (ES Modules)
+The implementation in [worker.js](worker.js):
 
-## Getting Started
+1. Reads up to five events whose `send_email` flag is false, oldest first.
+2. Looks up the event's device and its owner in the database.
+3. Resolves the owner's primary email address through Clerk.
+4. Creates an event-specific email and calls the Resend API.
+5. Updates the event's sent flag after the send call returns.
 
-1. **Clone the repo**
-   ```bash
-   git clone https://github.com/your-org/smart-doorbell-notification.git
-   cd smart-doorbell-notification
-   ```
+This is a project integration, not a claim of a production delivery service.
 
-2. **Install dependencies**
-   ```bash
-   bun install
-   ```
+## Stack and contribution
 
-3. **Configure environment**
-   - Create a `.dev.vars` in the project root with:
-     ```dotenv
-     SUPABASE_URL=your_supabase_url
-     SUPABASE_KEY=your_supabase_anon_or_service_key
-     RESEND_API_KEY=your_resend_api_key
-     CLERK_SECRET_KEY=your_clerk_secret_key
-     EMAIL_FROM_NAME="Smart Doorbell"
-     EMAIL_FROM_ADDRESS="onboarding@resend.dev"
-     ```
-   - Load these locally:
-     ```bash
-     source .dev.vars
-     ```
+JavaScript on Cloudflare Workers, with Supabase PostgreSQL, Clerk and Resend. My project work covers the pending-event processing and the device-owner email notification integration.
 
-4. **Run locally**
-   ```bash
-   bun run dev   # launches Wrangler in dev mode
-   ```
-   - `GET /health` → returns 200 if worker is up
-   - `POST /`    → processes up to 5 unsent events
+## Run locally
 
-5. **Deploy**
-   ```bash
-   bun run deploy
-   ```
+Install dependencies with `npm ci`, then use the package's `dev` script to run Wrangler locally. Configure your own `SUPABASE_URL`, `SUPABASE_KEY`, `CLERK_SECRET_KEY` and `RESEND_API_KEY` in local development secrets. Do not commit them.
 
-## Environment Variables
+A GET request returns a worker status message. A POST request triggers pending-event processing and can send real email; use a dedicated development database and test recipients. The sender address is currently defined in `worker.js` and requires a sender authorised by your Resend account.
 
-| Variable             | Description                                                   |
-|----------------------|---------------------------------------------------------------|
-| SUPABASE_URL         | Your Supabase project URL (e.g. `https://xyz.supabase.co`)    |
-| SUPABASE_KEY         | Supabase anon or service role key                             |
-| RESEND_API_KEY       | API key from your Resend account                              |
-| CLERK_SECRET_KEY     | Secret key from your Clerk dashboard                          |
-| EMAIL_FROM_NAME      | Display name for email From header (e.g. `Smart Doorbell`)   |
-| EMAIL_FROM_ADDRESS   | Email address for From header (e.g. `onboarding@resend.dev`) |
+## Current limitations
 
-Set these in Cloudflare Dashboard or with Wrangler:
-```bash
-wrangler secret put SUPABASE_URL
-wrangler secret put SUPABASE_KEY
-wrangler secret put RESEND_API_KEY
-wrangler secret put CLERK_SECRET_KEY
-wrangler secret put EMAIL_FROM_NAME
-wrangler secret put EMAIL_FROM_ADDRESS
-```
+- The current export implements HTTP `fetch` handling, not a `scheduled` handler. A cron setting alone does not make this worker process events automatically.
+- Email delivery and production operation have not been verified in the current portfolio review.
+- The code does not establish exactly-once delivery or concurrency-safe event claiming. It also needs delivery-result checking before its sent flag can be treated as durable delivery evidence.
 
-## HTTP Endpoints
-
-- `GET /health` — returns 200 OK if the worker is up
-- `POST /`       — fetches up to 5 unsent events, sends emails, and marks them sent
-
-## Automatic Scheduled Processing
-
-This Worker uses Cloudflare Cron Triggers to run `processEvents` every minute. The schedule is defined in `wrangler.toml`:
-```toml
-[triggers]
-crons = ["* * * * *"]
-```
-The `scheduled(event, env, ctx)` handler calls `ctx.waitUntil(processEvents(...))` so the job runs in the background, with no external scheduler required.
+See the [web application](https://github.com/Hayeensss/Smart_Doorbell) for the event-history interface and project context.
